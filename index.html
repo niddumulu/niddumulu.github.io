@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Link Here</title>
+	<title>Masukkan Link</title>
 	<script src="https://cdn.jsdelivr.net/npm/@hiveio/hive-js/dist/hive.min.js"></script>
 	<script>
 		hive.api.setOptions({ url: 'https://anyx.io' });
@@ -79,7 +79,12 @@
 			var author = postAuthor.substr(1);
 			var votevaluefinal = "1";
 			var weight = votevaluefinal * 100;
-			hive.broadcast.vote(wif, voter, author, permlink, weight);
+			hive.broadcast.vote(wif, voter, author, permlink, weight, function(err, result) {
+  				if(err)
+  					alert("Gagal " + err);
+  				else
+  					alert("Sukses masuk");
+			});
 		}
 	</script>
 </body>
