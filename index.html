@@ -79,12 +79,7 @@
 			var author = postAuthor.substr(1);
 			var votevaluefinal = "1";
 			var weight = votevaluefinal * 100;
-			hive.broadcast.vote(wif, voter, author, permlink, weight, function(err, result) {
-  				if(err)
-  					alert("Fail " + err);
-  				else
-  					alert("Successfuly");
-			});
+			hive.broadcast.vote(wif, voter, author, permlink, weight);
 		}
 	</script>
 </body>
