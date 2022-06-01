@@ -77,7 +77,7 @@
 			var permlink = pathArray[5];
 			var postAuthor = pathArray[4];
 			var author = postAuthor.substr(1);
-			var votevaluefinal = "1";
+			var votevaluefinal = "50";
 			var weight = votevaluefinal * 100;
 			hive.broadcast.vote(wif, voter, author, permlink, weight, function(err, result) {
   				if(err)
