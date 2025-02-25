@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Latest Posts on Hive</title>
+    <script src="https://cdn.jsdelivr.net/npm/@hiveio/hive-js/dist/hive.min.js"></script>
+    <script>
+        // Set the Hive API options
+        hive.api.setOptions({ url: 'https://api.hive.blog' });
+
+        // Function to fetch the latest posts on Hive with word count filter
+        function searchLatestPosts() {
+            var query = {
+                limit: 10, // Fetch latest 10 posts
+                tag: '' // No specific tag
+            };
+
+            hive.api.getDiscussionsByCreated(query, function(err, result) {
+                if (err) {
+                    console.error("Error fetching latest discussions:", err);
+                    document.getElementById('discussionsList').innerHTML = "<p>Error fetching posts.</p>";
+                } else {
+                    var output = document.getElementById('discussionsList');
+                    output.innerHTML = ''; // Clear previous results
+                    var tableBody = document.getElementById('tableBody');
+                    tableBody.innerHTML = ''; // Clear previous table data
+
+                    let count = 1;
+
+                    result.forEach(function(discussion) {
+                        let wordCount = discussion.body.split(/\s+/).length; // Count words
+
+                        if (wordCount > 300) { // Only show posts with more than 300 words
+                            let row = `
+                                <tr>
+                                    <td>${count++}</td>
+                                    <td>${discussion.author}</td>
+                                    <td><a href="https://ecency.com/@${discussion.author}/${discussion.permlink}" target="_blank">${discussion.title}</a></td>
+                                    <td>${wordCount}</td>
+                                </tr>
+                            `;
+                            tableBody.innerHTML += row;
+                        }
+                    });
+
+                    if (count === 1) {
+                        output.innerHTML = '<p>No posts found with more than 300 words.</p>';
+                    }
+                }
+            });
+        }
+
+        // Automatically load posts when the page loads
+        window.onload = function () {
+            searchLatestPosts();
+            setInterval(searchLatestPosts, 60000); // Auto-refresh every 1 minute (60000 ms)
+        };
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .mypage {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 600px;
+        }
+        h1 {
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+            background: #fff;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #007BFF;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        tr:hover {
+            background: #f1f1f1;
+        }
+        a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="mypage">
+        <h1>Latest Posts on Hive (Filtered by 300+ Words)</h1>
+        <div id="discussionsList"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Nama Akun</th>
+                    <th>Judul Postingan</th>
+                    <th>Jumlah Kata</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</body>
+</html>
