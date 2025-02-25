@@ -1,91 +1,258 @@
+<script>
+function postComment() {
+   var wif = document.getElementById('wif').value;
+   var author = document.getElementById('author').value;
+   var parentUrl = document.getElementById('parent').value;
+   var body = document.getElementById('commentBody').value;
+   var permlink = 'comment-' + new Date().getTime();
+   var beneficiaryAccounts = document.getElementById('beneficiaryAccounts').value.split(',').map(acc => acc.trim());
+   var beneficiaryPercents = document.getElementById('beneficiaryPercents').value.split(',').map(pct => parseInt(pct.trim()) * 100);
+
+   // Ekstrak Author dan Permalink dari URL
+   var urlParts = parentUrl.split('@');
+   if (urlParts.length === 2) {
+      var authorPermlink = urlParts[1].split('/');
+      if (authorPermlink.length === 2) {
+         var parentAuthor = authorPermlink[0];  // Author
+         var parentPermlink = authorPermlink[1]; // Permalink
+      } else {
+         alert("Invalid URL format for Parent. Please use the correct format.");
+         return;
+      }
+   } else {
+      alert("Invalid URL format for Parent. Please use the correct format.");
+      return;
+   }
+
+   if (!wif || !author || !parentAuthor || !parentPermlink || !body) {
+      alert("Please fill in all fields.");
+      return;
+   }
+
+   var extensions = [];
+   if (beneficiaryAccounts.length > 0 && beneficiaryPercents.length > 0 && beneficiaryAccounts.length === beneficiaryPercents.length) {
+      var beneficiaries = beneficiaryAccounts.map((account, index) => ({ account: account, weight: beneficiaryPercents[index] }));
+      extensions = [[0, { beneficiaries: beneficiaries }]];
+   }
+
+   var jsonMetadata = JSON.stringify({
+      tags: ['comment'],
+      app: 'newPost/v1.0'
+   });
+
+   // Post Comment
+   hive.broadcast.comment(
+      wif,
+      parentAuthor,
+      parentPermlink,
+      author,
+      permlink,
+      '',
+      body,
+      jsonMetadata,
+      function (err, result) {
+         if (err) {
+            alert('Error posting comment: ' + err);
+         } else {
+            // Jika comment berhasil, langsung atur beneficiaries
+            setCommentOptions(wif, author, permlink, extensions, function(success) {
+               if (success) {
+                  alert('Comment and Beneficiaries set successfully!');
+               } else {
+                  alert('Comment posted successfully, but failed to set beneficiaries.');
+               }
+            });
+         }
+      }
+   );
+}
+
+function setCommentOptions(wif, author, permlink, extensions, callback) {
+   if (extensions.length === 0) {
+      callback(true); // Jika tidak ada beneficiaries, langsung sukses
+      return;
+   }
+
+   hive.broadcast.commentOptions(
+      wif,
+      author,
+      permlink,
+      "1000000.000 HBD",
+      10000,
+      true,
+      true,
+      extensions,
+      function(err, result) {
+         if (err) {
+            console.error("Error setting comment options:", err);
+            callback(false);
+         } else {
+            callback(true);
+         }
+      }
+   );
+}
+</script>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-	<title>Masukkan Link</title>
-	<script src="https://cdn.jsdelivr.net/npm/@hiveio/hive-js/dist/hive.min.js"></script>
-	<script>
-		hive.api.setOptions({ url: 'https://anyx.io' });
-		hive.config.set('address_prefix','STM');
-		hive.config.set('chain_id','beeab0de00000000000000000000000000000000000000000000000000000000');
-		hive.config.set('alternative_api_endpoints', ['https://api.hive.blog', 'https://anyx.io']);
-	</script>
-	<style type="text/css">
-		* {
-			box-sizing: border-box;
-		}
-		.mypage {
-			width: 500px;
-			margin: 50px auto;
-			padding: 50px;
-			background: #BAB3B3;
-			border-radius: 5px;
-			box-shadow: 5px 0px 15px #000;
-			-moz-box-shadow: 5px 0px 15px #000;
-			-webkit-box-shadow: 5px 0px 15px #000;
-		}
-		
-		.mypage h1 {
-			color: #9D4242;
-			font-size: 20pt;
-			font-weight: 800;
-			padding: 10px;
-			margin: -40px -30px 10px;
-		}
-		.mypage input[type="text"],.mypage input[type="number"], input[type="password"] {
-			display: block;
-			width: 100%;
-			font: 17px Arial, Helvetica, sans-serif;
-			border: 0;
-			border-bottom: 2px solid #9D4242;
-			padding: 5px;
-			margin-bottom: 12px;
-			height: 40px;
-		}
-		#permlink:hover, #voter:hover, #wif:hover, #weight:hover {
-			border: 2px solid #9D4242;
-		}
-		.mypage input[type="button"] {
-			background-color: white;
-		    border: 2px solid #9D4242;
-		    display: inline-block;
-		    cursor: pointer;
-		    color: #9D4242;
-		    font-size: 18px;
-		    font-weight: 800;
-		    padding: 5px 10px;
-     	}
-		.mypage input[type="button"]:hover {
-			background: linear-gradient(to top left, #BAB3B3, #ffff);
-		}
-	</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comment on Hive</title>
+    <script src="https://cdn.jsdelivr.net/npm/@hiveio/hive-js/dist/hive.min.js"></script>
+    <script>
+        hive.api.setOptions({ url: 'https://anyx.io' });
+        hive.config.set('address_prefix', 'STM');
+        hive.config.set('chain_id', 'beeab0de00000000000000000000000000000000000000000000000000000000');
+        hive.config.set('alternative_api_endpoints', ['https://api.hive.blog', 'https://anyx.io']);
+
+        function postComment() {
+            var wif = document.getElementById('wif').value;
+            var author = document.getElementById('author').value;
+            var parentUrl = document.getElementById('parent').value;
+            var body = document.getElementById('commentBody').value;
+            var permlink = 'comment-' + new Date().getTime();
+            var beneficiaryAccounts = document.getElementById('beneficiaryAccounts').value.split(',').map(acc => acc.trim());
+            var beneficiaryPercents = document.getElementById('beneficiaryPercents').value.split(',').map(pct => parseInt(pct.trim()) * 100);
+
+            // Ekstrak Author dan Permalink dari URL
+            var urlParts = parentUrl.split('@');
+            if (urlParts.length === 2) {
+                var authorPermlink = urlParts[1].split('/');
+                if (authorPermlink.length === 2) {
+                    var parentAuthor = authorPermlink[0];  // Author
+                    var parentPermlink = authorPermlink[1]; // Permalink
+                } else {
+                    alert("Invalid URL format for Parent. Please use the correct format.");
+                    return;
+                }
+            } else {
+                alert("Invalid URL format for Parent. Please use the correct format.");
+                return;
+            }
+
+            if (!wif || !author || !parentAuthor || !parentPermlink || !body) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            var extensions = [];
+            if (beneficiaryAccounts.length > 0 && beneficiaryPercents.length > 0 && beneficiaryAccounts.length === beneficiaryPercents.length) {
+                var beneficiaries = beneficiaryAccounts.map((account, index) => ({ account: account, weight: beneficiaryPercents[index] }));
+                extensions = [[0, { beneficiaries: beneficiaries }]];
+            }
+
+            var jsonMetadata = JSON.stringify({
+                tags: ['comment'],
+                app: 'newPost/v1.0'
+            });
+
+            // Post Comment
+            hive.broadcast.comment(
+                wif,
+                parentAuthor,
+                parentPermlink,
+                author,
+                permlink,
+                '',
+                body,
+                jsonMetadata,
+                function (err, result) {
+                    if (err) {
+                        alert('Error posting comment: ' + err);
+                    } else {
+                        // Jika comment berhasil, langsung atur beneficiaries
+                        setCommentOptions(wif, author, permlink, extensions, function(success) {
+                            if (success) {
+                                alert('Comment and Beneficiaries set successfully!');
+                            } else {
+                                alert('Comment posted successfully, but failed to set beneficiaries.');
+                            }
+                        });
+                    }
+                }
+            );
+        }
+
+        function setCommentOptions(wif, author, permlink, extensions, callback) {
+            if (extensions.length === 0) {
+                callback(true); // Jika tidak ada beneficiaries, langsung sukses
+                return;
+            }
+
+            hive.broadcast.commentOptions(
+                wif,
+                author,
+                permlink,
+                "1000000.000 HBD",
+                10000,
+                true,
+                true,
+                extensions,
+                function(err, result) {
+                    if (err) {
+                        console.error("Error setting comment options:", err);
+                        callback(false);
+                    } else {
+                        callback(true);
+                    }
+                }
+            );
+        }
+    </script>
+
+    <style>
+        * { box-sizing: border-box; }
+        .mypage {
+            width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #BAB3B3;
+            border-radius: 5px;
+            box-shadow: 5px 0px 15px #000;
+        }
+        .mypage h1 {
+            color: #9D4242;
+            font-size: 20pt;
+            font-weight: 800;
+            text-align: center;
+        }
+        .mypage input, .mypage textarea {
+            display: block;
+            width: 100%;
+            font: 17px Arial, Helvetica, sans-serif;
+            border: 0;
+            border-bottom: 2px solid #9D4242;
+            padding: 5px;
+            margin-bottom: 12px;
+            height: 40px;
+        }
+        .mypage input[type="button"] {
+            background-color: white;
+            border: 2px solid #9D4242;
+            cursor: pointer;
+            color: #9D4242;
+            font-size: 18px;
+            font-weight: 800;
+            padding: 5px 10px;
+            display: block;
+            width: 100%;
+        }
+        .mypage input[type="button"]:hover {
+            background: linear-gradient(to top left, #BAB3B3, #ffff);
+        }
+    </style>
 </head>
 <body>
-	<div class="mypage">
-
-
-		<input id='permlink' type='text' placeholder="Link"></input>
-
-
-		<center><input type="button" value="Click" id='button' onclick="myUpvote()" /></button></center>
-	</div>
-
-	<script type="text/javascript">
-		function myUpvote(){
-			const wif = "5KckSX2pYE7kkfbissVR16Li1Xk57Rif95LdRfiUue55BhNdH6J";
-			const voter= "kajidomil";
-			var pathArray = document.getElementById('permlink').value.split('/');
-			var permlink = pathArray[5];
-			var postAuthor = pathArray[4];
-			var author = postAuthor.substr(1);
-			var votevaluefinal = "1";
-			var weight = votevaluefinal * 100;
-			hive.broadcast.vote(wif, voter, author, permlink, weight, function(err, result) {
-  				if(err)
-  					alert("Gagal " + err);
-  				else
-  					alert("Sukses masuk");
-			});
-		}
-	</script>
+    <div class="mypage">
+        <h1>Post a Comment on Hive</h1>
+        <input type="text" id="author" placeholder="Enter your username" />
+        <input type="password" id="wif" placeholder="Enter your private posting key" />
+        <input type="text" id="parent" placeholder="Enter post URL (e.g. https://ecency.com/hive-193084/@kingtherion/senja-berganti-malam)" />
+        <textarea id="commentBody" placeholder="Write your comment..."></textarea>
+        <input type="text" id="beneficiaryAccounts" placeholder="Enter beneficiary accounts (comma-separated)" />
+        <input type="text" id="beneficiaryPercents" placeholder="Enter beneficiary percentages (comma-separated)" />
+        <input type="button" value="COMMENT" onClick='postComment()' />
+    </div>
 </body>
 </html>
