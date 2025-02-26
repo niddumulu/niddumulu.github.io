@@ -1,143 +1,67 @@
-<script>
-function postComment() {
-   var wif = document.getElementById('wif').value;
-   var author = document.getElementById('author').value;
-   var parentUrl = document.getElementById('parent').value;
-   var body = document.getElementById('commentBody').value;
-   var permlink = 'comment-' + new Date().getTime();
-   var beneficiaryAccounts = document.getElementById('beneficiaryAccounts').value.split(',').map(acc => acc.trim());
-   var beneficiaryPercents = document.getElementById('beneficiaryPercents').value.split(',').map(pct => parseInt(pct.trim()) * 100);
-
-   // Ekstrak Author dan Permalink dari URL
-   var urlParts = parentUrl.split('@');
-   if (urlParts.length === 2) {
-      var authorPermlink = urlParts[1].split('/');
-      if (authorPermlink.length === 2) {
-         var parentAuthor = authorPermlink[0];  // Author
-         var parentPermlink = authorPermlink[1]; // Permalink
-      } else {
-         alert("Invalid URL format for Parent. Please use the correct format.");
-         return;
-      }
-   } else {
-      alert("Invalid URL format for Parent. Please use the correct format.");
-      return;
-   }
-
-   if (!wif || !author || !parentAuthor || !parentPermlink || !body) {
-      alert("Please fill in all fields.");
-      return;
-   }
-
-   var extensions = [];
-   if (beneficiaryAccounts.length > 0 && beneficiaryPercents.length > 0 && beneficiaryAccounts.length === beneficiaryPercents.length) {
-      var beneficiaries = beneficiaryAccounts.map((account, index) => ({ account: account, weight: beneficiaryPercents[index] }));
-      extensions = [[0, { beneficiaries: beneficiaries }]];
-   }
-
-   var jsonMetadata = JSON.stringify({
-      tags: ['comment'],
-      app: 'newPost/v1.0'
-   });
-
-   // Post Comment
-   hive.broadcast.comment(
-      wif,
-      parentAuthor,
-      parentPermlink,
-      author,
-      permlink,
-      '',
-      body,
-      jsonMetadata,
-      function (err, result) {
-         if (err) {
-            alert('Error posting comment: ' + err);
-         } else {
-            // Jika comment berhasil, langsung atur beneficiaries
-            setCommentOptions(wif, author, permlink, extensions, function(success) {
-               if (success) {
-                  alert('Comment and Beneficiaries set successfully!');
-               } else {
-                  alert('Comment posted successfully, but failed to set beneficiaries.');
-               }
-            });
-         }
-      }
-   );
-}
-
-function setCommentOptions(wif, author, permlink, extensions, callback) {
-   if (extensions.length === 0) {
-      callback(true); // Jika tidak ada beneficiaries, langsung sukses
-      return;
-   }
-
-   hive.broadcast.commentOptions(
-      wif,
-      author,
-      permlink,
-      "1000000.000 HBD",
-      10000,
-      true,
-      true,
-      extensions,
-      function(err, result) {
-         if (err) {
-            console.error("Error setting comment options:", err);
-            callback(false);
-         } else {
-            callback(true);
-         }
-      }
-   );
-}
-</script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
+	<link rel="stylesheet" type="text/css" href="styles.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comment on Hive</title>
     <script src="https://cdn.jsdelivr.net/npm/@hiveio/hive-js/dist/hive.min.js"></script>
     <script>
-        hive.api.setOptions({ url: 'https://anyx.io' });
-        hive.config.set('address_prefix', 'STM');
-        hive.config.set('chain_id', 'beeab0de00000000000000000000000000000000000000000000000000000000');
-        hive.config.set('alternative_api_endpoints', ['https://api.hive.blog', 'https://anyx.io']);
+        // Atur koneksi API Hive
+        hive.api.setOptions({ url: 'https://api.hive.blog' });
+
+        // Ambil Chain ID dari API Hive secara otomatis
+        function fetchChainID() {
+            hive.api.getConfig(function(err, result) {
+                if (!err && result.HIVE_CHAIN_ID) {
+                    hive.config.set('chain_id', result.HIVE_CHAIN_ID);
+                    console.log("Chain ID set to:", result.HIVE_CHAIN_ID);
+                } else {
+                    console.error("Failed to fetch Chain ID:", err);
+                }
+            });
+        }
+        fetchChainID();
 
         function postComment() {
-            var wif = document.getElementById('wif').value;
-            var author = document.getElementById('author').value;
-            var parentUrl = document.getElementById('parent').value;
-            var body = document.getElementById('commentBody').value;
+            var wif = document.getElementById('wif').value.trim();
+            var author = document.getElementById('author').value.trim();
+            var parentUrl = document.getElementById('parent').value.trim();
+            var body = document.getElementById('commentBody').value.trim();
             var permlink = 'comment-' + new Date().getTime();
-            var beneficiaryAccounts = document.getElementById('beneficiaryAccounts').value.split(',').map(acc => acc.trim());
-            var beneficiaryPercents = document.getElementById('beneficiaryPercents').value.split(',').map(pct => parseInt(pct.trim()) * 100);
+            var beneficiaryAccounts = document.getElementById('beneficiaryAccounts').value.split(',').map(acc => acc.trim()).filter(Boolean);
+            var beneficiaryPercents = document.getElementById('beneficiaryPercents').value.split(',').map(pct => parseInt(pct.trim()) * 100).filter(Boolean);
 
-            // Ekstrak Author dan Permalink dari URL
-            var urlParts = parentUrl.split('@');
-            if (urlParts.length === 2) {
-                var authorPermlink = urlParts[1].split('/');
-                if (authorPermlink.length === 2) {
-                    var parentAuthor = authorPermlink[0];  // Author
-                    var parentPermlink = authorPermlink[1]; // Permalink
-                } else {
-                    alert("Invalid URL format for Parent. Please use the correct format.");
-                    return;
-                }
-            } else {
-                alert("Invalid URL format for Parent. Please use the correct format.");
+            // Validasi Private Posting Key
+            if (!/^5[HJK][1-9A-HJ-NP-Za-km-z]{49}$/.test(wif)) {
+                alert("Invalid Private Posting Key format!");
                 return;
             }
 
+            // Validasi format Parent URL
+            var urlParts = parentUrl.match(/^https:\/\/hive.blog\/@([\w.-]+)\/([\w-]+)$/);
+            if (!urlParts) {
+                alert("Invalid Parent URL format! Use: https://hive.blog/@author/permlink");
+                return;
+            }
+            var parentAuthor = urlParts[1];
+            var parentPermlink = urlParts[2];
+
+            // Validasi data yang harus diisi
             if (!wif || !author || !parentAuthor || !parentPermlink || !body) {
                 alert("Please fill in all fields.");
                 return;
             }
 
+            // Set beneficiaries jika ada
             var extensions = [];
             if (beneficiaryAccounts.length > 0 && beneficiaryPercents.length > 0 && beneficiaryAccounts.length === beneficiaryPercents.length) {
+                var totalWeight = beneficiaryPercents.reduce((sum, weight) => sum + weight, 0);
+                if (totalWeight > 10000) {
+                    alert("Total beneficiary percentage cannot exceed 100%");
+                    return;
+                }
+
                 var beneficiaries = beneficiaryAccounts.map((account, index) => ({ account: account, weight: beneficiaryPercents[index] }));
                 extensions = [[0, { beneficiaries: beneficiaries }]];
             }
@@ -147,7 +71,9 @@ function setCommentOptions(wif, author, permlink, extensions, callback) {
                 app: 'newPost/v1.0'
             });
 
-            // Post Comment
+            console.log("Posting comment with:", {wif, parentAuthor, parentPermlink, author, permlink, body, jsonMetadata});
+
+            // Kirim komentar ke Hive
             hive.broadcast.comment(
                 wif,
                 parentAuthor,
@@ -159,9 +85,10 @@ function setCommentOptions(wif, author, permlink, extensions, callback) {
                 jsonMetadata,
                 function (err, result) {
                     if (err) {
-                        alert('Error posting comment: ' + err);
+                        console.error("Error posting comment:", err);
+                        alert('Error posting comment: ' + err.message);
                     } else {
-                        // Jika comment berhasil, langsung atur beneficiaries
+                        console.log("Comment posted successfully!", result);
                         setCommentOptions(wif, author, permlink, extensions, function(success) {
                             if (success) {
                                 alert('Comment and Beneficiaries set successfully!');
@@ -176,7 +103,7 @@ function setCommentOptions(wif, author, permlink, extensions, callback) {
 
         function setCommentOptions(wif, author, permlink, extensions, callback) {
             if (extensions.length === 0) {
-                callback(true); // Jika tidak ada beneficiaries, langsung sukses
+                callback(true);
                 return;
             }
 
@@ -194,65 +121,34 @@ function setCommentOptions(wif, author, permlink, extensions, callback) {
                         console.error("Error setting comment options:", err);
                         callback(false);
                     } else {
+                        console.log("Comment options set successfully!", result);
                         callback(true);
                     }
                 }
             );
         }
     </script>
-
-    <style>
-        * { box-sizing: border-box; }
-        .mypage {
-            width: 600px;
-            margin: 50px auto;
-            padding: 30px;
-            background: #BAB3B3;
-            border-radius: 5px;
-            box-shadow: 5px 0px 15px #000;
-        }
-        .mypage h1 {
-            color: #9D4242;
-            font-size: 20pt;
-            font-weight: 800;
-            text-align: center;
-        }
-        .mypage input, .mypage textarea {
-            display: block;
-            width: 100%;
-            font: 17px Arial, Helvetica, sans-serif;
-            border: 0;
-            border-bottom: 2px solid #9D4242;
-            padding: 5px;
-            margin-bottom: 12px;
-            height: 40px;
-        }
-        .mypage input[type="button"] {
-            background-color: white;
-            border: 2px solid #9D4242;
-            cursor: pointer;
-            color: #9D4242;
-            font-size: 18px;
-            font-weight: 800;
-            padding: 5px 10px;
-            display: block;
-            width: 100%;
-        }
-        .mypage input[type="button"]:hover {
-            background: linear-gradient(to top left, #BAB3B3, #ffff);
-        }
-    </style>
 </head>
 <body>
-    <div class="mypage">
-        <h1>Post a Comment on Hive</h1>
-        <input type="text" id="author" placeholder="Enter your username" />
-        <input type="password" id="wif" placeholder="Enter your private posting key" />
-        <input type="text" id="parent" placeholder="Enter post URL (e.g. https://ecency.com/hive-193084/@kingtherion/senja-berganti-malam)" />
-        <textarea id="commentBody" placeholder="Write your comment..."></textarea>
-        <input type="text" id="beneficiaryAccounts" placeholder="Enter beneficiary accounts (comma-separated)" />
-        <input type="text" id="beneficiaryPercents" placeholder="Enter beneficiary percentages (comma-separated)" />
-        <input type="button" value="COMMENT" onClick='postComment()' />
-    </div>
+    <h2>Post Comment to Hive</h2>
+    <label>Private Posting Key:</label>
+    <input type="password" id="wif" placeholder="5J...">
+    <br>
+    <label>Your Hive Username:</label>
+    <input type="text" id="author" placeholder="your-username">
+    <br>
+    <label>Parent Post URL:</label>
+    <input type="text" id="parent" placeholder="https://hive.blog/@author/permlink">
+    <br>
+    <label>Comment Body:</label>
+    <textarea id="commentBody" placeholder="Write your comment here..."></textarea>
+    <br>
+    <label>Beneficiary Accounts (comma separated):</label>
+    <input type="text" id="beneficiaryAccounts" placeholder="account1, account2">
+    <br>
+    <label>Beneficiary Percentages (comma separated, max 100%):</label>
+    <input type="text" id="beneficiaryPercents" placeholder="50, 50">
+    <br>
+    <button onclick="postComment()">Post Comment</button>
 </body>
 </html>
